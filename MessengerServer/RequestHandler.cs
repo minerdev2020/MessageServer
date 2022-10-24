@@ -1,4 +1,5 @@
-﻿using MessengerServer.Model;
+﻿using MessengerServer.Handler;
+using MessengerServer.Model;
 
 namespace MessengerServer;
 
@@ -11,12 +12,16 @@ public static class RequestHandler
             case Request.RequestType.Unknown:
                 break;
             case Request.RequestType.Quit:
+                new QuitHandler().Invoke(socketWrapper, request);
                 return true;
             case Request.RequestType.Login:
+                new LoginHandler().Invoke(socketWrapper, request);
                 break;
             case Request.RequestType.Logout:
+                new LogoutHandler().Invoke(socketWrapper, request);
                 break;
             case Request.RequestType.Register:
+                new RegisterHandler().Invoke(socketWrapper, request);
                 break;
             case Request.RequestType.SendMessage:
                 break;
