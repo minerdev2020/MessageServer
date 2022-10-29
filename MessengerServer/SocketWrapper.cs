@@ -24,28 +24,35 @@ public class SocketWrapper
         _socket.Close();
     }
 
-    public async Task<Request?> ReceiveAsync()
+    public async Task<Request?> ReceiveRequestAsync()
     {
         byte[] buffer = new byte[MAX_SIZE];
         int length = await _socket.ReceiveAsync(buffer, SocketFlags.None);
         if (length > 0)
         {
-            string json = Encoding.ASCII.GetString(buffer, 0, length);
+            string json = Encoding.UTF8.GetString(buffer, 0, length);
             Console.WriteLine("Receive : " + json);
 
-            Request? request = JsonSerializer.Deserialize<Request>(json);
+            Request? request = JsonSerializer.Deserialize<Request>(json, Program.JsonSerializerOptions);
             return request;
         }
 
         return null;
     }
 
-    public async void SendAsync(Response response)
+    public async void SendResponseAsync(Response response)
     {
-        string json = JsonSerializer.Serialize(response);
+        string json = JsonSerializer.Serialize(response, Program.JsonSerializerOptions);
         Console.WriteLine("Send : " + json);
 
         byte[] buffer = Encoding.UTF8.GetBytes(json);
+        await _socket.SendAsync(buffer, SocketFlags.None);
+    }
+
+    public async void SendMessageAsync(int userId, string message)
+    {
+        Console.WriteLine("Send Message : " + message + " From " + userId);
+        byte[] buffer = Encoding.UTF8.GetBytes(userId + ":" + message);
         await _socket.SendAsync(buffer, SocketFlags.None);
     }
 }

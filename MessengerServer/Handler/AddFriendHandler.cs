@@ -1,21 +1,18 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using MessengerServer.Model;
 using MySql.Data.MySqlClient;
 
 namespace MessengerServer.Handler;
 
-public class RegisterHandler : IBaseHandler
+public class AddFriendHandler : IBaseHandler
 {
     public async Task<bool> Invoke(SocketWrapper socketWrapper, Request request)
     {
         var data = JsonNode.Parse(request.Data);
-        var email = data?["email"]?.GetValue<string>() ?? "";
-        var password = data?["password"]?.GetValue<string>() ?? "";
-        var name = data?["name"]?.GetValue<string>() ?? "";
+        var myId = data?["id"]?.GetValue<int>() ?? 0;
+        var friendId = data?["targetId"]?.GetValue<int>() ?? 0;
 
-        if (email == "" || password == "" || name == "")
+        if (myId == 0 || friendId == 0)
         {
             Response response = new Response
             {
@@ -30,16 +27,6 @@ public class RegisterHandler : IBaseHandler
 
         else
         {
-            var encryptedPassword = "";
-            using (SHA256 sha256 = SHA256.Create())
-            {
-                var hashValue = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                foreach (byte b in hashValue)
-                {
-                    encryptedPassword += b.ToString();
-                }
-            }
-
             string responseData = "";
             bool result;
             long count;
@@ -47,29 +34,35 @@ public class RegisterHandler : IBaseHandler
             {
                 conn.Open();
 
-                var q = $"SELECT COUNT(*) FROM user WHERE email = '{email}'";
+                var q = $"SELECT COUNT(*) FROM user WHERE id IN ({myId}, {friendId})";
                 var cmd = new MySqlCommand(q, conn);
                 count = cmd.ExecuteScalar() as long? ?? 0;
             }
 
-            if (count > 0)
+            if (count == 2)
             {
                 Console.WriteLine("Found!");
-                result = false;
-            }
 
-            else
-            {
                 await using (var conn = MySqlManager.GetConnection())
                 {
                     conn.Open();
 
-                    Console.WriteLine("Not Found!");
-                    var insertQuery = $"INSERT INTO user(email, password, name) VALUES ('{email}', '{encryptedPassword}', '{name}')";
-                    var cmd = new MySqlCommand(insertQuery, conn);
-                    cmd.ExecuteNonQuery();
-                    result = true;
+                    var insertQuery1 = $"INSERT INTO user_friend(user_id, friend_id) VALUES ({myId}, {friendId})";
+                    var cmd1 = new MySqlCommand(insertQuery1, conn);
+                    cmd1.ExecuteNonQuery();
+
+                    var insertQuery2 = $"INSERT INTO user_friend(user_id, friend_id) VALUES ({friendId}, {myId})";
+                    var cmd2 = new MySqlCommand(insertQuery2, conn);
+                    cmd2.ExecuteNonQuery();
                 }
+
+                result = true;
+            }
+
+            else
+            {
+                Console.WriteLine("Not Found!");
+                result = false;
             }
 
             Response response = new Response

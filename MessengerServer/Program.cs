@@ -1,10 +1,19 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using MessengerServer;
+using System.Text.Json;
 using MessengerServer.Model;
+
+namespace MessengerServer;
 
 class Program
 {
+    public static readonly Dictionary<string, SocketWrapper> SocketDictionary = new();
+
+    public static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     static void Main(string[] args)
     {
         RunAsyncSocketServer().Wait();
@@ -21,8 +30,13 @@ class Program
 
         while (true)
         {
-            Socket clientSocket = await socket.AcceptAsync();
-            MainLoop(new SocketWrapper(clientSocket));
+            SocketWrapper socketWrapper = new SocketWrapper(await socket.AcceptAsync());
+
+            if (socketWrapper.IpAddress != null)
+            {
+                SocketDictionary[socketWrapper.IpAddress] = socketWrapper;
+                MainLoop(socketWrapper);
+            }
         }
     }
 
@@ -34,22 +48,29 @@ class Program
         {
             try
             {
-                Request? request = await socketWrapper.ReceiveAsync();
+                Request? request = await socketWrapper.ReceiveRequestAsync();
                 if (request != null)
                 {
-                    bool isQuit = RequestHandler.Invoke(socketWrapper, request);
+                    bool isQuit = await RequestHandler.Invoke(socketWrapper, request);
                     if (isQuit)
                     {
-                        Console.WriteLine(socketWrapper.IpAddress + " Disconnected!");
+                        if (socketWrapper.IpAddress != null)
+                        {
+                            SocketDictionary.Remove(socketWrapper.IpAddress);
+                            Console.WriteLine(socketWrapper.IpAddress + " Disconnected!");
+                        }
+
                         break;
                     }
                 }
             }
+
             catch (SocketException)
             {
                 Console.WriteLine(socketWrapper.IpAddress + " Disconnected!");
                 break;
             }
+
             catch (Exception e)
             {
                 Console.WriteLine(e);

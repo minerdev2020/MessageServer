@@ -1,21 +1,18 @@
-﻿using System.Security.Cryptography;
-using System.Text;
+﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using MessengerServer.Model;
 using MySql.Data.MySqlClient;
 
 namespace MessengerServer.Handler;
 
-public class RegisterHandler : IBaseHandler
+public class CreateRoomHandler : IBaseHandler
 {
     public async Task<bool> Invoke(SocketWrapper socketWrapper, Request request)
     {
         var data = JsonNode.Parse(request.Data);
-        var email = data?["email"]?.GetValue<string>() ?? "";
-        var password = data?["password"]?.GetValue<string>() ?? "";
-        var name = data?["name"]?.GetValue<string>() ?? "";
+        var memberListString = data?["memberList"]?.GetValue<string>() ?? string.Empty;
 
-        if (email == "" || password == "" || name == "")
+        if (memberListString == "")
         {
             Response response = new Response
             {
@@ -30,15 +27,7 @@ public class RegisterHandler : IBaseHandler
 
         else
         {
-            var encryptedPassword = "";
-            using (SHA256 sha256 = SHA256.Create())
-            {
-                var hashValue = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                foreach (byte b in hashValue)
-                {
-                    encryptedPassword += b.ToString();
-                }
-            }
+            var memberList = JsonSerializer.Deserialize<List<int>>(memberListString) ?? new List<int>();
 
             string responseData = "";
             bool result;
@@ -47,28 +36,58 @@ public class RegisterHandler : IBaseHandler
             {
                 conn.Open();
 
-                var q = $"SELECT COUNT(*) FROM user WHERE email = '{email}'";
+                var memberQuery = string.Join(",", memberList.Select(i => $"{i}"));
+                var q = $"SELECT COUNT(*) FROM user WHERE id IN ({memberQuery})";
                 var cmd = new MySqlCommand(q, conn);
                 count = cmd.ExecuteScalar() as long? ?? 0;
             }
 
-            if (count > 0)
+            if (count != memberList.Count)
             {
-                Console.WriteLine("Found!");
+                Console.WriteLine("Not Found!");
                 result = false;
             }
 
             else
             {
+                Console.WriteLine("Found!");
+
+                long roomId;
                 await using (var conn = MySqlManager.GetConnection())
                 {
                     conn.Open();
 
-                    Console.WriteLine("Not Found!");
-                    var insertQuery = $"INSERT INTO user(email, password, name) VALUES ('{email}', '{encryptedPassword}', '{name}')";
+                    var insertQuery = "INSERT INTO room(title) VALUES ('default title')";
                     var cmd = new MySqlCommand(insertQuery, conn);
                     cmd.ExecuteNonQuery();
+                    roomId = cmd.LastInsertedId;
+                }
+
+                if (roomId != 0)
+                {
+                    await using (var conn = MySqlManager.GetConnection())
+                    {
+                        conn.Open();
+
+                        foreach (int member in memberList)
+                        {
+                            var insertQuery = $"INSERT INTO user_room(user_id, room_id) VALUES ({member}, {roomId})";
+                            var cmd = new MySqlCommand(insertQuery, conn);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    responseData = new JsonObject
+                    {
+                        ["id"] = roomId
+                    }.ToJsonString();
+
                     result = true;
+                }
+
+                else
+                {
+                    result = false;
                 }
             }
 

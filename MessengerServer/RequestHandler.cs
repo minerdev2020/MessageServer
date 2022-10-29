@@ -5,36 +5,30 @@ namespace MessengerServer;
 
 public static class RequestHandler
 {
-    public static bool Invoke(SocketWrapper socketWrapper, Request request)
+    private static readonly Dictionary<Request.RequestType, IBaseHandler> Dictionary = new();
+
+    static RequestHandler()
     {
-        switch (request.Type)
+        Dictionary[Request.RequestType.Quit] = new QuitHandler();
+        Dictionary[Request.RequestType.Login] = new LoginHandler();
+        Dictionary[Request.RequestType.Logout] = new LogoutHandler();
+        Dictionary[Request.RequestType.Register] = new RegisterHandler();
+        Dictionary[Request.RequestType.ModifyMyInfo] = new ModifyMyInfoHandler();
+        Dictionary[Request.RequestType.SendMessage] = new SendMessageHandler();
+        Dictionary[Request.RequestType.GetRoomList] = new GetRoomListHandler();
+        Dictionary[Request.RequestType.CreateRoom] = new CreateRoomHandler();
+        Dictionary[Request.RequestType.JoinRoom] = new JoinRoomHandler();
+        Dictionary[Request.RequestType.LeaveRoom] = new LeaveRoomHandler();
+        Dictionary[Request.RequestType.ModifyRoom] = new ModifyRoomHandler();
+        Dictionary[Request.RequestType.AddFriend] = new AddFriendHandler();
+        Dictionary[Request.RequestType.GetFriendList] = new GetFriendListHandler();
+    }
+
+    public static async Task<bool> Invoke(SocketWrapper socketWrapper, Request request)
+    {
+        if (Dictionary.ContainsKey(request.Type))
         {
-            case Request.RequestType.Unknown:
-                break;
-            case Request.RequestType.Quit:
-                new QuitHandler().Invoke(socketWrapper, request);
-                return true;
-            case Request.RequestType.Login:
-                new LoginHandler().Invoke(socketWrapper, request);
-                break;
-            case Request.RequestType.Logout:
-                new LogoutHandler().Invoke(socketWrapper, request);
-                break;
-            case Request.RequestType.Register:
-                new RegisterHandler().Invoke(socketWrapper, request);
-                break;
-            case Request.RequestType.SendMessage:
-                break;
-            case Request.RequestType.CreateRoom:
-                break;
-            case Request.RequestType.JoinRoom:
-                break;
-            case Request.RequestType.LeaveRoom:
-                break;
-            case Request.RequestType.ModifyRoom:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
+            return await Dictionary[request.Type].Invoke(socketWrapper, request);
         }
 
         return false;

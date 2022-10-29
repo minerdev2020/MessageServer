@@ -4,14 +4,16 @@ using MySql.Data.MySqlClient;
 
 namespace MessengerServer.Handler;
 
-public class QuitHandler : IBaseHandler
+public class ModifyRoomHandler : IBaseHandler
 {
     public async Task<bool> Invoke(SocketWrapper socketWrapper, Request request)
     {
         var data = JsonNode.Parse(request.Data);
-        var id = data?["id"]?.GetValue<int>() ?? 0;
+        var userId = data?["userId"]?.GetValue<int>() ?? 0;
+        var roomId = data?["roomId"]?.GetValue<int>() ?? 0;
+        var title = data?["title"]?.GetValue<string>() ?? "";
 
-        if (id == 0)
+        if (userId == 0 || roomId == 0 || title == "")
         {
             Response response = new Response
             {
@@ -27,28 +29,25 @@ public class QuitHandler : IBaseHandler
         else
         {
             bool result;
-            long count;
+            long userCount;
+            long roomCount;
             await using (var conn = MySqlManager.GetConnection())
             {
                 conn.Open();
 
-                var q = $"SELECT COUNT(*) FROM user WHERE id = {id}";
-                var cmd = new MySqlCommand(q, conn);
-                count = cmd.ExecuteScalar() as long? ?? 0;
+                var q1 = $"SELECT COUNT(*) FROM user WHERE id = {userId}";
+                var cmd1 = new MySqlCommand(q1, conn);
+                userCount = cmd1.ExecuteScalar() as long? ?? 0;
+
+                var q2 = $"UPDATE room SET title = '{title}' WHERE id = {roomId}";
+                var cmd2 = new MySqlCommand(q2, conn);
+                roomCount = cmd2.ExecuteNonQuery();
             }
 
-            if (count > 0)
+            if (userCount == 1 && roomCount == 1)
             {
-                await using (var conn = MySqlManager.GetConnection())
-                {
-                    conn.Open();
-
-                    Console.WriteLine("Found!");
-                    var updateQuery = $"UPDATE user SET online = 0 WHERE id = {id}";
-                    var cmd = new MySqlCommand(updateQuery, conn);
-                    cmd.ExecuteNonQuery();
-                    result = true;
-                }
+                Console.WriteLine("Found!");
+                result = true;
             }
 
             else
@@ -68,6 +67,6 @@ public class QuitHandler : IBaseHandler
             socketWrapper.SendResponseAsync(response);
         }
 
-        return true;
+        return false;
     }
 }

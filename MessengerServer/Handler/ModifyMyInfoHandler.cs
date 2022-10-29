@@ -4,14 +4,15 @@ using MySql.Data.MySqlClient;
 
 namespace MessengerServer.Handler;
 
-public class QuitHandler : IBaseHandler
+public class ModifyMyInfoHandler : IBaseHandler
 {
     public async Task<bool> Invoke(SocketWrapper socketWrapper, Request request)
     {
         var data = JsonNode.Parse(request.Data);
         var id = data?["id"]?.GetValue<int>() ?? 0;
+        var newName = data?["newName"]?.GetValue<string>() ?? "";
 
-        if (id == 0)
+        if (id == 0 || newName == "")
         {
             Response response = new Response
             {
@@ -32,23 +33,15 @@ public class QuitHandler : IBaseHandler
             {
                 conn.Open();
 
-                var q = $"SELECT COUNT(*) FROM user WHERE id = {id}";
+                var q = $"UPDATE user SET name = '{newName}' WHERE id = {id}";
                 var cmd = new MySqlCommand(q, conn);
-                count = cmd.ExecuteScalar() as long? ?? 0;
+                count = cmd.ExecuteNonQuery();
             }
 
-            if (count > 0)
+            if (count == 1)
             {
-                await using (var conn = MySqlManager.GetConnection())
-                {
-                    conn.Open();
-
-                    Console.WriteLine("Found!");
-                    var updateQuery = $"UPDATE user SET online = 0 WHERE id = {id}";
-                    var cmd = new MySqlCommand(updateQuery, conn);
-                    cmd.ExecuteNonQuery();
-                    result = true;
-                }
+                Console.WriteLine("Found!");
+                result = true;
             }
 
             else
@@ -68,6 +61,6 @@ public class QuitHandler : IBaseHandler
             socketWrapper.SendResponseAsync(response);
         }
 
-        return true;
+        return false;
     }
 }

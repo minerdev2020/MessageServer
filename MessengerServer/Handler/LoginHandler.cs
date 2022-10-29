@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using MessengerServer.Model;
 using MySql.Data.MySqlClient;
 
@@ -9,13 +10,13 @@ namespace MessengerServer.Handler;
 
 public class LoginHandler : IBaseHandler
 {
-    public async void Invoke(SocketWrapper socketWrapper, Request request)
+    public async Task<bool> Invoke(SocketWrapper socketWrapper, Request request)
     {
-        var data = JsonSerializer.Deserialize<Dictionary<string, string>>(request.Data);
-        var email = data?["Email"];
-        var password = data?["Password"];
+        var data = JsonNode.Parse(request.Data);
+        var email = data?["email"]?.GetValue<string>() ?? "";
+        var password = data?["password"]?.GetValue<string>() ?? "";
 
-        if (email == null || password == null)
+        if (email == "" || password == "")
         {
             Response response = new Response
             {
@@ -25,7 +26,7 @@ public class LoginHandler : IBaseHandler
                 Result = false
             };
 
-            socketWrapper.SendAsync(response);
+            socketWrapper.SendResponseAsync(response);
         }
 
         else
@@ -50,15 +51,15 @@ public class LoginHandler : IBaseHandler
                 await adapter.FillAsync(dataSet);
             }
 
-            await using (var conn = MySqlManager.GetConnection())
+            if (dataSet.Tables[0].Rows.Count > 0)
             {
-                conn.Open();
-
-                if (dataSet.Tables[0].Rows.Count > 0)
+                await using (var conn = MySqlManager.GetConnection())
                 {
+                    conn.Open();
+
                     Console.WriteLine("Found!");
                     var id = dataSet.Tables[0].Rows[0]["id"] as int? ?? 0;
-                    var updateQuery = $"UPDATE user SET online = 1 WHERE id = {id}";
+                    var updateQuery = $"UPDATE user SET online = 1, ip = '{socketWrapper.IpAddress}' WHERE id = {id}";
                     var cmd = new MySqlCommand(updateQuery, conn);
                     cmd.ExecuteNonQuery();
                     result = true;
@@ -71,14 +72,14 @@ public class LoginHandler : IBaseHandler
                         Online = true
                     };
 
-                    responseData = JsonSerializer.Serialize(user);
+                    responseData = JsonSerializer.Serialize(user, Program.JsonSerializerOptions);
                 }
+            }
 
-                else
-                {
-                    Console.WriteLine("Not Found!");
-                    result = false;
-                }
+            else
+            {
+                Console.WriteLine("Not Found!");
+                result = false;
             }
 
             Response response = new Response
@@ -89,7 +90,9 @@ public class LoginHandler : IBaseHandler
                 Result = result
             };
 
-            socketWrapper.SendAsync(response);
+            socketWrapper.SendResponseAsync(response);
         }
+
+        return false;
     }
 }

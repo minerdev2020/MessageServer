@@ -1,5 +1,4 @@
-﻿using System.Data;
-using System.Text.Json;
+﻿using System.Text.Json.Nodes;
 using MessengerServer.Model;
 using MySql.Data.MySqlClient;
 
@@ -7,12 +6,12 @@ namespace MessengerServer.Handler;
 
 public class LogoutHandler : IBaseHandler
 {
-    public async void Invoke(SocketWrapper socketWrapper, Request request)
+    public async Task<bool> Invoke(SocketWrapper socketWrapper, Request request)
     {
-        var data = JsonSerializer.Deserialize<Dictionary<string, string>>(request.Data);
-        var id = data?["Id"];
+        var data = JsonNode.Parse(request.Data);
+        var id = data?["id"]?.GetValue<int>() ?? 0;
 
-        if (id == null)
+        if (id == 0)
         {
             Response response = new Response
             {
@@ -22,38 +21,40 @@ public class LogoutHandler : IBaseHandler
                 Result = false
             };
 
-            socketWrapper.SendAsync(response);
+            socketWrapper.SendResponseAsync(response);
         }
 
         else
         {
             bool result;
-            var dataSet = new DataSet();
-            await using (var conn = MySqlManager.GetConnection())
-            {
-                var q = $"SELECT * FROM user WHERE id = {id}";
-                var adapter = new MySqlDataAdapter(q, conn);
-                await adapter.FillAsync(dataSet);
-            }
-
+            long count;
             await using (var conn = MySqlManager.GetConnection())
             {
                 conn.Open();
-                
-                if (dataSet.Tables[0].Rows.Count > 0)
+
+                var q = $"SELECT COUNT(*) FROM user WHERE id = {id}";
+                var cmd = new MySqlCommand(q, conn);
+                count = cmd.ExecuteScalar() as long? ?? 0;
+            }
+
+            if (count > 0)
+            {
+                await using (var conn = MySqlManager.GetConnection())
                 {
+                    conn.Open();
+
                     Console.WriteLine("Found!");
                     var updateQuery = $"UPDATE user SET online = 0 WHERE id = {id}";
                     var cmd = new MySqlCommand(updateQuery, conn);
                     cmd.ExecuteNonQuery();
                     result = true;
                 }
+            }
 
-                else
-                {
-                    Console.WriteLine("Not Found!");
-                    result = false;
-                }
+            else
+            {
+                Console.WriteLine("Not Found!");
+                result = false;
             }
 
             Response response = new Response
@@ -64,7 +65,9 @@ public class LogoutHandler : IBaseHandler
                 Result = result
             };
 
-            socketWrapper.SendAsync(response);
+            socketWrapper.SendResponseAsync(response);
         }
+
+        return false;
     }
 }

@@ -11,11 +11,15 @@ public class Request
         Login,
         Logout,
         Register,
+        ModifyMyInfo,
         SendMessage,
+        GetRoomList,
         CreateRoom,
         JoinRoom,
         LeaveRoom,
-        ModifyRoom
+        ModifyRoom,
+        AddFriend,
+        GetFriendList
     }
 
     [JsonInclude] public long Id;
