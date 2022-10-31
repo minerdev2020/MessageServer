@@ -52,7 +52,7 @@ public class GetFriendListHandler : IBaseHandler
 
                 responseData = new JsonObject
                 {
-                    ["friendList"] = JsonSerializer.Serialize(friendList, Program.JsonSerializerOptions)
+                    ["friendList"] = JsonSerializer.Serialize(friendList, Server.JsonSerializerOptions)
                 }.ToJsonString();
 
                 result = true;

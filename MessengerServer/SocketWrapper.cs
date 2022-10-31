@@ -8,9 +8,11 @@ namespace MessengerServer;
 
 public class SocketWrapper
 {
-    private const int MAX_SIZE = 1024;
+    private const int MaxSize = 1024;
 
+    private readonly byte[] _receiveBuffer = new byte[MaxSize];
     private readonly Socket _socket;
+
     public readonly string? IpAddress;
 
     public SocketWrapper(Socket socket)
@@ -26,14 +28,13 @@ public class SocketWrapper
 
     public async Task<Request?> ReceiveRequestAsync()
     {
-        byte[] buffer = new byte[MAX_SIZE];
-        int length = await _socket.ReceiveAsync(buffer, SocketFlags.None);
+        int length = await _socket.ReceiveAsync(_receiveBuffer, SocketFlags.None);
         if (length > 0)
         {
-            string json = Encoding.UTF8.GetString(buffer, 0, length);
+            string json = Encoding.UTF8.GetString(_receiveBuffer, 0, length);
             Console.WriteLine("Receive : " + json);
 
-            Request? request = JsonSerializer.Deserialize<Request>(json, Program.JsonSerializerOptions);
+            Request? request = JsonSerializer.Deserialize<Request>(json, Server.JsonSerializerOptions);
             return request;
         }
 
@@ -42,17 +43,14 @@ public class SocketWrapper
 
     public async void SendResponseAsync(Response response)
     {
-        string json = JsonSerializer.Serialize(response, Program.JsonSerializerOptions);
+        string json = JsonSerializer.Serialize(response, Server.JsonSerializerOptions);
         Console.WriteLine("Send : " + json);
-
-        byte[] buffer = Encoding.UTF8.GetBytes(json);
-        await _socket.SendAsync(buffer, SocketFlags.None);
+        await _socket.SendAsync(Encoding.UTF8.GetBytes(json), SocketFlags.None);
     }
 
     public async void SendMessageAsync(int userId, string message)
     {
         Console.WriteLine("Send Message : " + message + " From " + userId);
-        byte[] buffer = Encoding.UTF8.GetBytes(userId + ":" + message);
-        await _socket.SendAsync(buffer, SocketFlags.None);
+        await _socket.SendAsync(Encoding.UTF8.GetBytes(userId + ":" + message), SocketFlags.None);
     }
 }

@@ -72,7 +72,7 @@ public class GetRoomListHandler : IBaseHandler
 
             responseData = new JsonObject
             {
-                ["roomList"] = JsonSerializer.Serialize(roomList, Program.JsonSerializerOptions)
+                ["roomList"] = JsonSerializer.Serialize(roomList, Server.JsonSerializerOptions)
             }.ToJsonString();
 
             result = true;

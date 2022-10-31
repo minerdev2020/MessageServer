@@ -53,7 +53,7 @@ public class SendMessageHandler : IBaseHandler
                     {
                         try
                         {
-                            Program.SocketDictionary[ip].SendMessageAsync(userId, message);
+                            Server.SocketDictionary[ip].SendMessageAsync(userId, message);
                         }
 
                         catch (Exception e)
