@@ -72,7 +72,9 @@ public class LoginHandler : IBaseHandler
                         Online = true
                     };
 
-                    responseData = JsonSerializer.Serialize(user, Program.JsonSerializerOptions);
+                    responseData = JsonSerializer.Serialize(user, Server.JsonSerializerOptions);
+
+                    socketWrapper.IsLogin = true;
                 }
             }
 

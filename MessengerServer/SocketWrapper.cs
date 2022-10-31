@@ -15,6 +15,8 @@ public class SocketWrapper
 
     public readonly string? IpAddress;
 
+    public bool IsLogin = false;
+
     public SocketWrapper(Socket socket)
     {
         _socket = socket;

@@ -49,6 +49,8 @@ public class LogoutHandler : IBaseHandler
                     cmd.ExecuteNonQuery();
                     result = true;
                 }
+
+                socketWrapper.IsLogin = false;
             }
 
             else

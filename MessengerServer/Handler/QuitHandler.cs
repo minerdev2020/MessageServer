@@ -49,6 +49,8 @@ public class QuitHandler : IBaseHandler
                     cmd.ExecuteNonQuery();
                     result = true;
                 }
+
+                socketWrapper.IsLogin = false;
             }
 
             else
